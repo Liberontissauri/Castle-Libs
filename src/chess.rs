@@ -3,7 +3,7 @@ use std::{io::{Error, ErrorKind}, u16};
 
 use pleco::{Board, BitMove};
 
-struct ChessGame {
+pub struct ChessGame {
     inital_board: Board,
     moves: Vec<Move>,
     time_limit: u32, // in milliseconds
@@ -98,7 +98,7 @@ impl ChessGame {
     }
 }
 
-struct ChessGameBuilder {
+pub struct ChessGameBuilder {
     inital_board: Board,
     moves: Vec<Move>,
     time_limit: u32, // in milliseconds
@@ -136,7 +136,7 @@ impl ChessGameBuilder {
     
 }
 
-struct Move {
+pub struct Move {
     uci_move: String,
     time_taken: u32, // in milliseconds
 }
