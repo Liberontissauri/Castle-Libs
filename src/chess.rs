@@ -1,11 +1,12 @@
 
-use std::{io::{Error, ErrorKind}, u16};
+use std::{io::{Error, ErrorKind}, u16, time::SystemTime};
 
 use pleco::{Board, BitMove};
 
 pub struct ChessGame {
     inital_board: Board,
     moves: Vec<Move>,
+    start_time: u32, // in milliseconds
     time_limit: u32, // in milliseconds
     increment: u32, // in milliseconds
 }
@@ -51,7 +52,7 @@ impl ChessGame {
             Err(Error::new(ErrorKind::Other, "Tried undoing a move when there are no moves to undo"))
         }
     }
-    pub fn compute_white_elapsed_time(&self) -> u32 {
+    pub fn compute_white_moves_time(&self) -> u32 {
         let mut elapsed_time = 0;
         for (mut turn, mov) in self.moves.iter().enumerate() { 
             turn += 1;
@@ -67,12 +68,11 @@ impl ChessGame {
         }
         elapsed_time
     }
-    pub fn compute_black_elapsed_time(&self) -> u32 {
+    pub fn compute_black_moves_time(&self) -> u32 {
         let mut elapsed_time = 0;
         for (mut turn, mov) in self.moves.iter().enumerate() {
             turn += 1; // Because the turns must start at 1 for turn 0 to be the initial board state
             let turn_board = self.compute_board_at_turn(turn as u16);
-            println!("{:?}", turn_board.turn());
             if turn_board.turn() == pleco::Player::White { // Needs Testing but its because, presumably, turn() tracks the next move, not the current move
                 elapsed_time += mov.time_taken;
                 if elapsed_time >= self.increment {
@@ -84,6 +84,40 @@ impl ChessGame {
         }
         elapsed_time
     }
+    pub fn compute_total_moves_time(&self) -> u32 {
+        let mut elapsed_time = 0;
+        for mov in self.moves.iter() {
+            elapsed_time += mov.time_taken;
+        }
+        elapsed_time
+    }
+
+    pub fn compute_total_elapsed_time(&self) -> u32 {
+        let now = SystemTime::now();
+        let current_time = now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards").as_millis() as u32;
+        current_time - self.start_time
+    }
+    pub fn compute_white_elapsed_time(&self) -> u32 {
+        let total_elapsed_time = self.compute_total_elapsed_time();
+        let white_moves_time = self.compute_white_moves_time();
+        let black_moves_time = self.compute_black_moves_time();
+        let turn = self.compute_current_board().turn();
+        match turn {
+            pleco::Player::White => total_elapsed_time - black_moves_time,
+            pleco::Player::Black => white_moves_time,
+        }
+    }
+    pub fn compute_black_elapsed_time(&self) -> u32 {
+        let total_elapsed_time = self.compute_total_elapsed_time();
+        let white_moves_time = self.compute_white_moves_time();
+        let black_moves_time = self.compute_black_moves_time();
+        let turn = self.compute_current_board().turn();
+        match turn {
+            pleco::Player::White => black_moves_time,
+            pleco::Player::Black => total_elapsed_time - white_moves_time,
+        }
+    }
+
     pub fn is_white_time_over(&self) -> bool {
         let elapsed_time = self.compute_white_elapsed_time();
         elapsed_time > self.time_limit
@@ -104,6 +138,10 @@ pub struct ChessGameBuilder {
     time_limit: u32, // in milliseconds
     increment: u32, // in milliseconds
 }
+// Get Time since epoch in miliseconds
+// let now = SystemTime::now();
+// let since_the_epoch = now.duration_since(UNIX_EPOCH).expect("Time went backwards");
+// println!("Time since the epoch: {:?}", since_the_epoch);
 impl ChessGameBuilder {
     pub fn new() -> ChessGameBuilder {
         ChessGameBuilder {
@@ -126,9 +164,11 @@ impl ChessGameBuilder {
         self
     }
     pub fn build(self) -> ChessGame {
+        let now = SystemTime::now();
         ChessGame {
             inital_board: self.inital_board,
             moves: self.moves,
+            start_time: now.duration_since(std::time::UNIX_EPOCH).expect("Time went backwards").as_millis() as u32,
             time_limit: self.time_limit,
             increment: self.increment,
         }
